@@ -1,34 +1,10 @@
+
 #Configure the AWS Provider
 provider "aws" {
   region = "us-east-1"
 }
 
-
-# Creating Instances here
-resource "aws_instance" "Future" {
-  ami               = "ami-0574da719dca65348"
-  instance_type     = "t2.micro"
-  availability_zone = "us-east-1a"
-  key_name          = "Terraform"
-
-  network_interface {
-    device_index         = 0
-    network_interface_id = aws_network_interface.nic.id
-  }
-
-  user_data = <<EOF
-              #!/bin/bash
-              sudo apt update -y
-              sudo apt install apache2 -y
-              sudo systemctl start apache2
-              sudo bash -c 'echo this is my first web server created by terraform > /var/www/html/index.html'
-              EOF
-  tags = {
-    "Name" = "Future_x"
-  }
-}
-
-# Creating VPC here
+#Creating VPC here
 resource "aws_vpc" "my-dev" {
   cidr_block = "10.0.0.0/16" # Defining the CIDR block use 10.0.0.0/24 for demo
   tags = {
@@ -47,18 +23,16 @@ resource "aws_internet_gateway" "IGW" {
 
 #Create Route Table
 
-resource "aws_route" "internet" {
+resource "aws_route_table" "internet" {
 
-  vpc_id = aws_vpc.my_dev.id
+  vpc_id = aws_vpc.my-dev.id
 
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.IGW.id
   }
 
-  tags = {
-    "Name" = "internet-Gateway"
-  }
+
 
 }
 
@@ -67,7 +41,7 @@ resource "aws_route" "internet" {
 resource "aws_subnet" "my-dev-subnet" {
   vpc_id            = aws_vpc.my-dev.id
   cidr_block        = "10.0.200.0/24" # Defining the CIDR block use 10.0.0.0/24 for demo
-  availability_zone = "us_east-1a"
+  availability_zone = "us-east-1a"
 
 
   tags = {
@@ -80,13 +54,13 @@ resource "aws_subnet" "my-dev-subnet" {
 
 resource "aws_route_table_association" "route_association" {
   subnet_id      = aws_subnet.my-dev-subnet.id
-  route_table_id = aws_route.internet.id
+  route_table_id = aws_route_table.internet.id
 }
 
 
 # create security group with ports (20-80-443)
 
-resource "aws_security_group" "allowed-ports" {
+resource "aws_security_group" "allowed" {
   name = "allowed-ports"
   #description = "Allow TLS inbound traffic"
   vpc_id = aws_vpc.my-dev.id
@@ -134,44 +108,42 @@ resource "aws_security_group" "allowed-ports" {
 
 resource "aws_network_interface" "nic" {
   subnet_id       = aws_subnet.my-dev-subnet.id
-  private_ips     = ["10.0.200.50"] // this ip from same range of my private subnet
-  security_groups = aws_security_group.allowed_ports.id
-
-  attachment {
-    instance     = aws_instance.Future
-    device_index = 0
-  }
+  private_ips     = ["10.0.200.200"] // this ip from same range of my private subnet
+  security_groups = [aws_security_group.allowed.id]
 }
 
 
 # Assign an elastic IP
 
 resource "aws_eip" "elastic-ip" {
-  instance = aws_instance.Future
-  vpc      = true
-  depends_on = [
-    aws_internet_gateway.IGW
-  ]
+
+  vpc                       = true
+  network_interface         = aws_network_interface.nic.id
+  associate_with_private_ip = "10.0.200.200"
+  depends_on                = [aws_internet_gateway.IGW]
+
 }
 
+# Creating Instances here
+resource "aws_instance" "Future" {
+  ami               = "ami-0574da719dca65348"
+  instance_type     = "t2.micro"
+  availability_zone = "us-east-1a"
+  key_name          = "Terraform"
 
+  network_interface {
+    device_index         = 0
+    network_interface_id = aws_network_interface.nic.id
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  user_data = <<EOF
+              #!/bin/bash
+              sudo apt update -y
+              sudo apt install apache2 -y
+              sudo systemctl start apache2
+              sudo bash -c 'echo this is my first web server created by terraform > /var/www/html/index.html'
+              EOF
+  tags = {
+    "Name" = "Future_x"
+  }
+}
