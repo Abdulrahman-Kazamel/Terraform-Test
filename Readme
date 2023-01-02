@@ -1,0 +1,13 @@
+# Create A Project with Terraform #
+========> Details
+ 
+# adding Providers 
+# Creae A VPC 
+# Create Gateway
+# Create Route Table
+# Create subnet
+# Associate subnet with the route
+# create security group with ports (20-80-443)
+# create a network interface and associate it to the subnet
+# Assign an elastic IP
+# create ubuntu server and install/enable apache2
